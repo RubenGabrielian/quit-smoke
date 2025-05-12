@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, doc, setDoc, getDoc, Timestamp } from 'firebase/firestore';
+import type { FirebaseApp } from 'firebase/app';
+import { getFirestore, type Firestore, collection, doc, setDoc, getDoc, Timestamp } from 'firebase/firestore';
 
 // Your web app's Firebase configuration
 // Replace these with your actual Firebase config values
@@ -13,9 +14,24 @@ const firebaseConfig = {
     measurementId: "G-86YK7JLJ61"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+// Initialize Firebase with error handling
+let app: FirebaseApp;
+let db: Firestore;
+
+try {
+    console.log('Initializing Firebase with config:', {
+        ...firebaseConfig,
+        apiKey: '***' // Hide the actual API key in logs
+    });
+
+    app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+
+    console.log('Firebase initialized successfully');
+} catch (error) {
+    console.error('Error initializing Firebase:', error);
+    throw error;
+}
 
 // Function to get today's date string in YYYY-MM-DD format
 const getTodayString = () => {
@@ -175,6 +191,21 @@ export const initializeDatabase = async (userId: string) => {
         return true;
     } catch (error) {
         console.error('Error initializing database:', error);
+        throw error;
+    }
+};
+
+// Function to verify Firebase connection
+export const verifyFirebaseConnection = async () => {
+    try {
+        console.log('Verifying Firebase connection...');
+        // Try to get a document to verify connection
+        const testRef = doc(db, 'users', 'test');
+        await getDoc(testRef);
+        console.log('Firebase connection verified successfully');
+        return true;
+    } catch (error) {
+        console.error('Firebase connection verification failed:', error);
         throw error;
     }
 };

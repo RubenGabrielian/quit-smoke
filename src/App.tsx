@@ -1,7 +1,7 @@
 import './index.css';
 import './SmokeHome.css';
 import { useState, useEffect } from 'react';
-import { saveSmokingData, getTodaySmokingData, checkUserExists, createNewUser, updateUserFirstTimeStatus, getUserData, initializeDatabase } from './firebase';
+import { saveSmokingData, getTodaySmokingData, checkUserExists, createNewUser, updateUserFirstTimeStatus, getUserData, initializeDatabase, verifyFirebaseConnection } from './firebase';
 import WebApp from '@twa-dev/sdk';
 
 const SMOKE_GOAL = Number(import.meta.env.VITE_SMOKE_GOAL) || 20;
@@ -65,6 +65,9 @@ export default function App() {
   useEffect(() => {
     const initializeApp = async () => {
       try {
+        // First verify Firebase connection
+        await verifyFirebaseConnection();
+        
         const user = WebApp.initDataUnsafe.user;
         if (!user?.id) {
           throw new Error('Telegram user data not available');
@@ -73,7 +76,7 @@ export default function App() {
         const userId = user.id.toString();
         console.log('Initializing app for user:', userId);
 
-        // Initialize database structure first
+        // Initialize database structure
         await initializeDatabase(userId);
         
         // Then try to get today's data
