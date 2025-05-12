@@ -22,40 +22,65 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [isFirstTime, setIsFirstTime] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [isTelegramReady, setIsTelegramReady] = useState(false);
   const nicotine = smokedCount * NICOTINE_PER_SMOKE;
 
   // Initialize Telegram WebApp
   useEffect(() => {
-    try {
-      // Initialize the Telegram WebApp
-      WebApp.ready();
-      
-      // Expand the WebApp to full height
-      WebApp.expand();
-      
-      // Set the main button color
-      WebApp.MainButton.setParams({
-        text: 'SMOKE TRACKER',
-        color: '#4f8cff',
-      });
-    } catch (err) {
-      console.error('Error initializing Telegram WebApp:', err);
-      setError('Failed to initialize Telegram WebApp');
-    }
+    const initTelegram = async () => {
+      try {
+        // Check if we're running in Telegram WebApp
+        if (!window.Telegram?.WebApp) {
+          throw new Error('Not running in Telegram WebApp');
+        }
+
+        // Initialize the Telegram WebApp
+        WebApp.ready();
+        
+        // Expand the WebApp to full height
+        WebApp.expand();
+        
+        // Set the main button color
+        WebApp.MainButton.setParams({
+          text: 'SMOKE TRACKER',
+          color: '#4f8cff',
+        });
+
+        // Verify that we have user data
+        const user = WebApp.initDataUnsafe.user;
+        if (!user?.id) {
+          throw new Error('Telegram user data not available');
+        }
+
+        setIsTelegramReady(true);
+      } catch (err) {
+        console.error('Error initializing Telegram WebApp:', err);
+        setError(err instanceof Error ? err.message : 'Failed to initialize Telegram WebApp');
+        setIsLoading(false);
+      }
+    };
+
+    initTelegram();
   }, []);
 
   // Check user status and load data
   useEffect(() => {
     const initializeUser = async () => {
+      if (!isTelegramReady) return;
+
       try {
-        const userId = WebApp.initDataUnsafe.user?.id.toString();
-        const username = WebApp.initDataUnsafe.user?.username || 'Anonymous';
-        
-        if (!userId) {
-          throw new Error('Telegram user ID not available');
+        const user = WebApp.initDataUnsafe.user;
+        if (!user?.id) {
+          throw new Error('Telegram user data not available');
         }
 
+        const userId = user.id.toString();
+        const username = user.username || user.first_name || 'Anonymous';
+        
+        console.log('Initializing user:', { userId, username }); // Debug log
+
         const userExists = await checkUserExists(userId);
+        console.log('User exists:', userExists); // Debug log
         
         if (!userExists) {
           // Create new user
@@ -65,6 +90,8 @@ export default function App() {
         } else {
           // Get user data
           const userData = await getUserData(userId);
+          console.log('User data:', userData); // Debug log
+          
           if (userData?.isFirstTime) {
             setIsFirstTime(true);
             setShowWelcome(true);
@@ -78,23 +105,27 @@ export default function App() {
         }
       } catch (error) {
         console.error('Error initializing user:', error);
-        setError('Failed to initialize user data');
+        setError(error instanceof Error ? error.message : 'Failed to initialize user data');
       } finally {
         setIsLoading(false);
       }
     };
 
-    initializeUser();
-  }, []);
+    if (isTelegramReady) {
+      initializeUser();
+    }
+  }, [isTelegramReady]);
 
   // Handle first smoke for new users
   const handleFirstSmoke = async () => {
     try {
-      const userId = WebApp.initDataUnsafe.user?.id.toString();
-      if (!userId) {
-        throw new Error('Telegram user ID not available');
+      const user = WebApp.initDataUnsafe.user;
+      if (!user?.id) {
+        throw new Error('Telegram user data not available');
       }
 
+      const userId = user.id.toString();
+      
       // Update user's first-time status
       await updateUserFirstTimeStatus(userId);
       setIsFirstTime(false);
@@ -112,18 +143,19 @@ export default function App() {
       });
     } catch (error) {
       console.error('Error handling first smoke:', error);
-      setError('Failed to record first smoke');
+      setError(error instanceof Error ? error.message : 'Failed to record first smoke');
     }
   };
 
   // Save smoking data whenever it changes
   const handleSmoke = async () => {
     try {
-      const userId = WebApp.initDataUnsafe.user?.id.toString();
-      if (!userId) {
-        throw new Error('Telegram user ID not available');
+      const user = WebApp.initDataUnsafe.user;
+      if (!user?.id) {
+        throw new Error('Telegram user data not available');
       }
 
+      const userId = user.id.toString();
       const newCount = smokedCount + 1;
       setSmokedCount(newCount);
       
@@ -140,7 +172,7 @@ export default function App() {
       });
     } catch (error) {
       console.error('Error saving smoking data:', error);
-      setError('Failed to save smoking data');
+      setError(error instanceof Error ? error.message : 'Failed to save smoking data');
       // Revert the count if save fails
       setSmokedCount(smokedCount);
       
@@ -161,6 +193,9 @@ export default function App() {
         <div className="smoke-card">
           <div className="smoke-card-title" style={{ color: '#ff4d4f' }}>Error</div>
           <div style={{ color: '#7b8ca6', fontSize: '1rem' }}>{error}</div>
+          <div style={{ color: '#7b8ca6', fontSize: '0.9rem', marginTop: '1rem', textAlign: 'center' }}>
+            Please make sure you're opening this app from Telegram.
+          </div>
         </div>
       </div>
     );
