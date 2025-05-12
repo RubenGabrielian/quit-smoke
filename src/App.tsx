@@ -1,9 +1,11 @@
 import './index.css';
 import './SmokeHome.css';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { saveSmokingData, getTodaySmokingData } from './firebase';
+import WebApp from '@twa-dev/sdk';
 
-const SMOKE_GOAL = 20;
-const NICOTINE_PER_SMOKE = 12; // mg
+const SMOKE_GOAL = Number(import.meta.env.VITE_SMOKE_GOAL) || 20;
+const NICOTINE_PER_SMOKE = Number(import.meta.env.VITE_NICOTINE_PER_SMOKE) || 12; // mg
 
 function getTickClass(i: number, smokedCount: number) {
   if (i < smokedCount) {
@@ -16,7 +18,113 @@ function getTickClass(i: number, smokedCount: number) {
 
 export default function App() {
   const [smokedCount, setSmokedCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const nicotine = smokedCount * NICOTINE_PER_SMOKE;
+
+  // Initialize Telegram WebApp
+  useEffect(() => {
+    try {
+      // Initialize the Telegram WebApp
+      WebApp.ready();
+      
+      // Expand the WebApp to full height
+      WebApp.expand();
+      
+      // Set the main button color
+      WebApp.MainButton.setParams({
+        text: 'SMOKE TRACKER',
+        color: '#4f8cff',
+      });
+    } catch (err) {
+      console.error('Error initializing Telegram WebApp:', err);
+      setError('Failed to initialize Telegram WebApp');
+    }
+  }, []);
+
+  // Load today's smoking data when the component mounts
+  useEffect(() => {
+    const loadTodayData = async () => {
+      try {
+        const userId = WebApp.initDataUnsafe.user?.id.toString();
+        if (!userId) {
+          throw new Error('Telegram user ID not available');
+        }
+
+        const data = await getTodaySmokingData(userId);
+        if (data) {
+          setSmokedCount(data.smokedCount);
+        }
+      } catch (error) {
+        console.error('Error loading smoking data:', error);
+        setError('Failed to load smoking data');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadTodayData();
+  }, []);
+
+  // Save smoking data whenever it changes
+  const handleSmoke = async () => {
+    try {
+      const userId = WebApp.initDataUnsafe.user?.id.toString();
+      if (!userId) {
+        throw new Error('Telegram user ID not available');
+      }
+
+      const newCount = smokedCount + 1;
+      setSmokedCount(newCount);
+      
+      // Show loading state
+      WebApp.MainButton.showProgress();
+      
+      await saveSmokingData(userId, newCount);
+      
+      // Show success feedback
+      WebApp.showPopup({
+        title: 'Success',
+        message: 'Smoking activity recorded!',
+        buttons: [{ type: 'ok' }]
+      });
+    } catch (error) {
+      console.error('Error saving smoking data:', error);
+      setError('Failed to save smoking data');
+      // Revert the count if save fails
+      setSmokedCount(smokedCount);
+      
+      // Show error feedback
+      WebApp.showPopup({
+        title: 'Error',
+        message: 'Failed to save smoking data. Please try again.',
+        buttons: [{ type: 'ok' }]
+      });
+    } finally {
+      WebApp.MainButton.hideProgress();
+    }
+  };
+
+  if (error) {
+    return (
+      <div className="smoke-bg">
+        <div className="smoke-card">
+          <div className="smoke-card-title" style={{ color: '#ff4d4f' }}>Error</div>
+          <div style={{ color: '#7b8ca6', fontSize: '1rem' }}>{error}</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="smoke-bg">
+        <div className="smoke-card">
+          <div className="smoke-card-title">Loading...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="smoke-bg">
@@ -50,7 +158,7 @@ export default function App() {
       <div className="smoke-big-btn-wrap">
         <div className="smoke-big-btn-ripple"></div>
         <div className="smoke-big-btn-ripple2"></div>
-        <button className="smoke-big-btn" onClick={() => setSmokedCount(c => c + 1)}>
+        <button className="smoke-big-btn" onClick={handleSmoke}>
           Smoke
         </button>
       </div>
