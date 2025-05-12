@@ -1,7 +1,7 @@
 import './index.css';
 import './SmokeHome.css';
 import { useState, useEffect } from 'react';
-import { saveSmokingData, getTodaySmokingData, checkUserExists, createNewUser, updateUserFirstTimeStatus, getUserData } from './firebase';
+import { saveSmokingData, getTodaySmokingData, checkUserExists, createNewUser, updateUserFirstTimeStatus, getUserData, initializeDatabase } from './firebase';
 import WebApp from '@twa-dev/sdk';
 
 const SMOKE_GOAL = Number(import.meta.env.VITE_SMOKE_GOAL) || 20;
@@ -61,11 +61,9 @@ export default function App() {
     initTelegram();
   }, []);
 
-  // Check user status and load data
+  // Initialize app
   useEffect(() => {
-    const initializeUser = async () => {
-      if (!isTelegramReady) return;
-
+    const initializeApp = async () => {
       try {
         const user = WebApp.initDataUnsafe.user;
         if (!user?.id) {
@@ -73,33 +71,31 @@ export default function App() {
         }
 
         const userId = user.id.toString();
-        const username = user.username || user.first_name || 'Anonymous';
+        console.log('Initializing app for user:', userId);
+
+        // Initialize database structure first
+        await initializeDatabase(userId);
         
-        // Try to get today's data first
+        // Then try to get today's data
         const todayData = await getTodaySmokingData(userId);
         if (todayData) {
+          console.log('Found today\'s data:', todayData);
           setSmokedCount(todayData.smokedCount);
         } else {
-          // If no data for today, check if user exists
-          const userExists = await checkUserExists(userId);
-          if (!userExists) {
-            // Create new user silently
-            await createNewUser(userId, username);
-          }
+          console.log('No data for today, starting with 0');
+          setSmokedCount(0);
         }
       } catch (error) {
-        console.error('Error initializing user:', error);
-        // Don't show error, just start with zero count
-        console.log('Starting with zero count due to initialization error');
+        console.error('Error initializing app:', error);
+        setError(error instanceof Error ? error.message : 'Failed to initialize app');
+        setSmokedCount(0);
       } finally {
         setIsLoading(false);
       }
     };
 
-    if (isTelegramReady) {
-      initializeUser();
-    }
-  }, [isTelegramReady]);
+    initializeApp();
+  }, []);
 
   // Save smoking data whenever it changes
   const handleSmoke = async () => {
@@ -110,30 +106,53 @@ export default function App() {
       }
 
       const userId = user.id.toString();
+      console.log('Handling smoke for user:', userId);
+      
       const newCount = smokedCount + 1;
       setSmokedCount(newCount);
       
       // Show loading state
       WebApp.MainButton.showProgress();
       
-      await saveSmokingData(userId, newCount);
-      
-      // Show success feedback
-      WebApp.showPopup({
-        title: 'Success',
-        message: 'Smoking activity recorded!',
-        buttons: [{ type: 'ok' }]
-      });
+      try {
+        await saveSmokingData(userId, newCount);
+        console.log('Smoke data saved successfully');
+        
+        // Show success feedback
+        WebApp.showPopup({
+          title: 'Success',
+          message: 'Smoking activity recorded!',
+          buttons: [{ type: 'ok' }]
+        });
+      } catch (saveError) {
+        console.error('Error saving smoke data:', saveError);
+        // Revert the count
+        setSmokedCount(smokedCount);
+        
+        // Show detailed error feedback
+        const errorMessage = saveError instanceof Error 
+          ? `Error: ${saveError.message}\n\nPlease try again.`
+          : 'Failed to save smoking data. Please try again.';
+        
+        WebApp.showPopup({
+          title: 'Error Saving Data',
+          message: errorMessage,
+          buttons: [{ type: 'ok' }]
+        });
+        
+        // Also set the error state for the UI
+        setError(saveError instanceof Error ? saveError.message : 'Failed to save smoking data');
+      }
     } catch (error) {
-      console.error('Error saving smoking data:', error);
-      setError(error instanceof Error ? error.message : 'Failed to save smoking data');
-      // Revert the count if save fails
-      setSmokedCount(smokedCount);
+      console.error('Error in handleSmoke:', error);
+      setError(error instanceof Error ? error.message : 'Failed to process smoke action');
       
       // Show error feedback
       WebApp.showPopup({
         title: 'Error',
-        message: 'Failed to save smoking data. Please try again.',
+        message: error instanceof Error 
+          ? `Error: ${error.message}\n\nPlease try again.`
+          : 'An error occurred. Please try again.',
         buttons: [{ type: 'ok' }]
       });
     } finally {
