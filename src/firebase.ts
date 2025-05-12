@@ -38,6 +38,25 @@ const getTodayString = () => {
     return new Date().toISOString().split('T')[0];
 };
 
+// Function to get date string in YYYY-MM-DD format
+const getDateString = (date: Date) => {
+    return date.toISOString().split('T')[0];
+};
+
+// Function to get start and end dates for the current week
+const getWeekDates = () => {
+    const now = new Date();
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay()); // Start from Sunday
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6); // End on Saturday
+    endOfWeek.setHours(23, 59, 59, 999);
+
+    return { startOfWeek, endOfWeek };
+};
+
 // Function to check if user exists
 export const checkUserExists = async (userId: string) => {
     try {
@@ -199,13 +218,113 @@ export const initializeDatabase = async (userId: string) => {
 export const verifyFirebaseConnection = async () => {
     try {
         console.log('Verifying Firebase connection...');
+
+        // Log current Firebase config (without sensitive data)
+        console.log('Firebase project:', firebaseConfig.projectId);
+
         // Try to get a document to verify connection
         const testRef = doc(db, 'users', 'test');
-        await getDoc(testRef);
+        console.log('Attempting to read test document...');
+
+        try {
+            const docSnap = await getDoc(testRef);
+            console.log('Test document read result:', {
+                exists: docSnap.exists(),
+                error: null
+            });
+        } catch (readError: any) {
+            console.error('Error reading test document:', {
+                name: readError?.name,
+                message: readError?.message,
+                code: readError?.code,
+                stack: readError?.stack
+            });
+
+            // Check if it's a permissions error
+            if (readError?.code === 'permission-denied') {
+                console.error('Firebase permissions error. Current rules:', {
+                    projectId: firebaseConfig.projectId,
+                    database: '(default)'
+                });
+                throw new Error('Firebase permissions error. Please check security rules.');
+            }
+            throw readError;
+        }
+
         console.log('Firebase connection verified successfully');
         return true;
+    } catch (error: any) {
+        console.error('Firebase connection verification failed:', {
+            error,
+            name: error?.name,
+            message: error?.message,
+            code: error?.code,
+            stack: error?.stack
+        });
+        throw error;
+    }
+};
+
+// Function to get weekly statistics
+export const getWeeklyStatistics = async (userId: string) => {
+    try {
+        console.log('Fetching weekly statistics for user:', userId);
+        const { startOfWeek, endOfWeek } = getWeekDates();
+
+        // Get all dates in the week
+        const dates: string[] = [];
+        const currentDate = new Date(startOfWeek);
+        while (currentDate <= endOfWeek) {
+            dates.push(getDateString(currentDate));
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+
+        // Fetch data for each day
+        const weeklyData = await Promise.all(
+            dates.map(async (date) => {
+                const docRef = doc(db, 'users', userId, 'smoking_records', date);
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    return {
+                        date,
+                        smokedCount: data.smokedCount || 0,
+                        nicotineAmount: data.nicotineAmount || 0,
+                        timestamp: data.timestamp
+                    };
+                }
+
+                return {
+                    date,
+                    smokedCount: 0,
+                    nicotineAmount: 0,
+                    timestamp: null
+                };
+            })
+        );
+
+        // Calculate statistics
+        const totalSmokes = weeklyData.reduce((sum, day) => sum + day.smokedCount, 0);
+        const totalNicotine = weeklyData.reduce((sum, day) => sum + day.nicotineAmount, 0);
+        const averageSmokesPerDay = totalSmokes / 7;
+        const maxSmokesInDay = Math.max(...weeklyData.map(day => day.smokedCount));
+        const daysWithSmoking = weeklyData.filter(day => day.smokedCount > 0).length;
+
+        return {
+            weeklyData,
+            statistics: {
+                totalSmokes,
+                totalNicotine,
+                averageSmokesPerDay,
+                maxSmokesInDay,
+                daysWithSmoking,
+                startDate: getDateString(startOfWeek),
+                endDate: getDateString(endOfWeek)
+            }
+        };
     } catch (error) {
-        console.error('Firebase connection verification failed:', error);
+        console.error('Error fetching weekly statistics:', error);
         throw error;
     }
 };

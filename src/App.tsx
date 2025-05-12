@@ -3,6 +3,7 @@ import './SmokeHome.css';
 import { useState, useEffect } from 'react';
 import { saveSmokingData, getTodaySmokingData, checkUserExists, createNewUser, updateUserFirstTimeStatus, getUserData, initializeDatabase, verifyFirebaseConnection } from './firebase';
 import WebApp from '@twa-dev/sdk';
+import Statistics from './components/Statistics';
 
 const SMOKE_GOAL = Number(import.meta.env.VITE_SMOKE_GOAL) || 20;
 const NICOTINE_PER_SMOKE = Number(import.meta.env.VITE_NICOTINE_PER_SMOKE) || 12; // mg
@@ -21,6 +22,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isTelegramReady, setIsTelegramReady] = useState(false);
+  const [showStatistics, setShowStatistics] = useState(false);
   const nicotine = smokedCount * NICOTINE_PER_SMOKE;
 
   // Initialize Telegram WebApp
@@ -223,6 +225,34 @@ export default function App() {
     );
   }
 
+  if (showStatistics) {
+    return (
+      <>
+        <Statistics />
+        <button 
+          className="statistics-back-button"
+          onClick={() => setShowStatistics(false)}
+          style={{
+            position: 'fixed',
+            bottom: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            padding: '12px 24px',
+            backgroundColor: '#4f8cff',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            fontSize: '16px',
+            cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+          }}
+        >
+          Back to Counter
+        </button>
+      </>
+    );
+  }
+
   return (
     <div className="smoke-bg">
       {/* Card */}
@@ -259,6 +289,28 @@ export default function App() {
           Smoke
         </button>
       </div>
+
+      {/* Statistics Button */}
+      <button 
+        className="statistics-button"
+        onClick={() => setShowStatistics(true)}
+        style={{
+          marginTop: '16px',
+          padding: '12px 24px',
+          backgroundColor: '#f8f9fa',
+          color: '#4f8cff',
+          border: '1px solid #4f8cff',
+          borderRadius: '8px',
+          fontSize: '16px',
+          cursor: 'pointer',
+          width: '100%',
+          maxWidth: '300px',
+          margin: '16px auto',
+          display: 'block'
+        }}
+      >
+        View Weekly Statistics
+      </button>
 
       <div className="smoke-instruction">
         Tap the button above to log your smoking activity.<br />
