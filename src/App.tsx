@@ -1,7 +1,7 @@
 import './index.css';
 import './SmokeHome.css';
 import { useState, useEffect } from 'react';
-import { saveSmokingData, getTodaySmokingData } from './firebase';
+import { saveSmokingData, getTodaySmokingData, checkUserExists, createNewUser, updateUserFirstTimeStatus, getUserData } from './firebase';
 import WebApp from '@twa-dev/sdk';
 
 const SMOKE_GOAL = Number(import.meta.env.VITE_SMOKE_GOAL) || 20;
@@ -20,6 +20,8 @@ export default function App() {
   const [smokedCount, setSmokedCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isFirstTime, setIsFirstTime] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
   const nicotine = smokedCount * NICOTINE_PER_SMOKE;
 
   // Initialize Telegram WebApp
@@ -42,29 +44,77 @@ export default function App() {
     }
   }, []);
 
-  // Load today's smoking data when the component mounts
+  // Check user status and load data
   useEffect(() => {
-    const loadTodayData = async () => {
+    const initializeUser = async () => {
       try {
         const userId = WebApp.initDataUnsafe.user?.id.toString();
+        const username = WebApp.initDataUnsafe.user?.username || 'Anonymous';
+        
         if (!userId) {
           throw new Error('Telegram user ID not available');
         }
 
-        const data = await getTodaySmokingData(userId);
-        if (data) {
-          setSmokedCount(data.smokedCount);
+        const userExists = await checkUserExists(userId);
+        
+        if (!userExists) {
+          // Create new user
+          await createNewUser(userId, username);
+          setIsFirstTime(true);
+          setShowWelcome(true);
+        } else {
+          // Get user data
+          const userData = await getUserData(userId);
+          if (userData?.isFirstTime) {
+            setIsFirstTime(true);
+            setShowWelcome(true);
+          } else {
+            // Load smoking data for existing user
+            const data = await getTodaySmokingData(userId);
+            if (data) {
+              setSmokedCount(data.smokedCount);
+            }
+          }
         }
       } catch (error) {
-        console.error('Error loading smoking data:', error);
-        setError('Failed to load smoking data');
+        console.error('Error initializing user:', error);
+        setError('Failed to initialize user data');
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadTodayData();
+    initializeUser();
   }, []);
+
+  // Handle first smoke for new users
+  const handleFirstSmoke = async () => {
+    try {
+      const userId = WebApp.initDataUnsafe.user?.id.toString();
+      if (!userId) {
+        throw new Error('Telegram user ID not available');
+      }
+
+      // Update user's first-time status
+      await updateUserFirstTimeStatus(userId);
+      setIsFirstTime(false);
+      setShowWelcome(false);
+
+      // Save first smoke
+      await saveSmokingData(userId, 1);
+      setSmokedCount(1);
+
+      // Show welcome message
+      WebApp.showPopup({
+        title: 'Welcome to Smoke Tracker!',
+        message: 'Your first smoke has been recorded. Keep tracking to achieve your goals!',
+        buttons: [{ type: 'ok' }]
+      });
+    } catch (error) {
+      console.error('Error handling first smoke:', error);
+      setError('Failed to record first smoke');
+    }
+  };
 
   // Save smoking data whenever it changes
   const handleSmoke = async () => {
@@ -121,6 +171,33 @@ export default function App() {
       <div className="smoke-bg">
         <div className="smoke-card">
           <div className="smoke-card-title">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (showWelcome) {
+    return (
+      <div className="smoke-bg">
+        <div className="smoke-card">
+          <div className="smoke-card-title">Welcome to Smoke Tracker!</div>
+          <div style={{ color: '#7b8ca6', fontSize: '1rem', marginBottom: '1.5rem', textAlign: 'center' }}>
+            Track your smoking habits and work towards your goals.
+            <br /><br />
+            Click the button below to record your first smoke and get started!
+          </div>
+          <button 
+            className="smoke-big-btn" 
+            onClick={handleFirstSmoke}
+            style={{ 
+              width: 'auto', 
+              padding: '0.75rem 2rem',
+              borderRadius: '1rem',
+              marginTop: '1rem'
+            }}
+          >
+            Start Tracking
+          </button>
         </div>
       </div>
     );

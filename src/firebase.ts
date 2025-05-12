@@ -22,6 +22,33 @@ const getTodayString = () => {
     return new Date().toISOString().split('T')[0];
 };
 
+// Function to check if user exists
+export const checkUserExists = async (userId: string) => {
+    const userRef = doc(db, 'users', userId);
+    const userSnap = await getDoc(userRef);
+    return userSnap.exists();
+};
+
+// Function to create new user
+export const createNewUser = async (userId: string, username: string) => {
+    const userRef = doc(db, 'users', userId);
+    await setDoc(userRef, {
+        username,
+        createdAt: Timestamp.now(),
+        isFirstTime: true,
+        lastActive: Timestamp.now()
+    });
+};
+
+// Function to update user's first-time status
+export const updateUserFirstTimeStatus = async (userId: string) => {
+    const userRef = doc(db, 'users', userId);
+    await setDoc(userRef, {
+        isFirstTime: false,
+        lastActive: Timestamp.now()
+    }, { merge: true });
+};
+
 // Function to save smoking data
 export const saveSmokingData = async (userId: string, smokedCount: number) => {
     const today = getTodayString();
@@ -43,6 +70,17 @@ export const getTodaySmokingData = async (userId: string) => {
 
     if (docSnap.exists()) {
         return docSnap.data();
+    }
+    return null;
+};
+
+// Function to get user data
+export const getUserData = async (userId: string) => {
+    const userRef = doc(db, 'users', userId);
+    const userSnap = await getDoc(userRef);
+
+    if (userSnap.exists()) {
+        return userSnap.data();
     }
     return null;
 };
