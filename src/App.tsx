@@ -65,17 +65,44 @@ export default function App() {
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        // First verify Firebase connection
-        await verifyFirebaseConnection();
-        
+        // Check if we're running in Telegram WebApp
+        if (!window.Telegram?.WebApp) {
+          console.error('Telegram WebApp not detected');
+          throw new Error('Please open this app from Telegram');
+        }
+
+        // Log Telegram WebApp data for debugging
+        console.log('Telegram WebApp data:', {
+          initData: WebApp.initData,
+          initDataUnsafe: WebApp.initDataUnsafe,
+          platform: WebApp.platform,
+          version: WebApp.version,
+          colorScheme: WebApp.colorScheme,
+          themeParams: WebApp.themeParams
+        });
+
+        // Initialize Telegram WebApp
+        WebApp.ready();
+        WebApp.expand();
+
+        // Verify we have user data
         const user = WebApp.initDataUnsafe.user;
         if (!user?.id) {
-          throw new Error('Telegram user data not available');
+          console.error('No Telegram user data available:', WebApp.initDataUnsafe);
+          throw new Error('Telegram user data not available. Please try reopening the app.');
         }
 
         const userId = user.id.toString();
-        console.log('Initializing app for user:', userId);
+        console.log('Initializing app for Telegram user:', {
+          id: userId,
+          username: user.username,
+          firstName: user.first_name,
+          lastName: user.last_name
+        });
 
+        // First verify Firebase connection
+        await verifyFirebaseConnection();
+        
         // Initialize database structure
         await initializeDatabase(userId);
         
@@ -90,7 +117,16 @@ export default function App() {
         }
       } catch (error) {
         console.error('Error initializing app:', error);
-        setError(error instanceof Error ? error.message : 'Failed to initialize app');
+        // Show more specific error message based on the error type
+        if (error instanceof Error) {
+          if (error.message.includes('Telegram')) {
+            setError('Please open this app from Telegram. If you are already in Telegram, try reopening the app.');
+          } else {
+            setError(`Error: ${error.message}`);
+          }
+        } else {
+          setError('An unexpected error occurred. Please try reopening the app.');
+        }
         setSmokedCount(0);
       } finally {
         setIsLoading(false);
