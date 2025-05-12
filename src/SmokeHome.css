@@ -1,0 +1,270 @@
+.smoke-bg {
+    background: linear-gradient(180deg, #4f8cff 0%, #eaf2ff 100%);
+    min-height: 100vh;
+    padding-top: 30px;
+    padding-bottom: 32px;
+}
+
+.smoke-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.2rem 1.2rem 0.5rem 1.2rem;
+}
+
+.smoke-header-title {
+    color: #fff;
+    font-size: 1.2rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.smoke-header-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.18);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.smoke-header-icon .dot {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 10px;
+    height: 10px;
+    background: #ff4d4f;
+    border-radius: 50%;
+    border: 2px solid #fff;
+}
+
+.smoke-card {
+    background: #fff;
+    border-radius: 1.5rem;
+    box-shadow: 0 4px 24px rgba(79, 140, 255, 0.08);
+    margin: 0 0.7rem;
+    margin-top: 1.2rem;
+    padding: 2rem 1.2rem 1.5rem 1.2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 95vw;
+}
+
+.smoke-card-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 0.5rem;
+}
+
+.smoke-card-count {
+    font-size: 3rem;
+    font-weight: 700;
+    color: #222;
+    line-height: 1;
+    margin-bottom: 0.2rem;
+}
+
+.smoke-card-goal {
+    font-size: 1.3rem;
+    color: #b0b0b0;
+    font-weight: 500;
+    margin-left: 0.2rem;
+}
+
+.smoke-card-motivation {
+    background: #f2f4f8;
+    color: #7b8ca6;
+    font-size: 1rem;
+    font-weight: 500;
+    border-radius: 1rem;
+    padding: 0.18rem 1.1rem;
+    margin-bottom: 0.7rem;
+    margin-top: 0.2rem;
+}
+
+.smoke-progress {
+    display: flex;
+    gap: 0.18rem;
+    margin: 0.5rem 0 0.5rem 0;
+    width: 100%;
+    justify-content: center;
+}
+
+.smoke-progress-tick {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #eaf2ff;
+    border: 1.5px solid #eaf2ff;
+    margin: 0 2px;
+    transform: none;
+    transition: background 0.2s, border 0.2s;
+}
+
+.smoke-progress-tick.active.smoke-progress-tick-green {
+    background: #4ade80;
+    border: 1.5px solid #4ade80;
+}
+
+.smoke-progress-tick.active.smoke-progress-tick-red {
+    background: #f87171;
+    border: 1.5px solid #f87171;
+}
+
+.smoke-progress-tick.active.smoke-progress-tick-darkred {
+    background: #b91c1c;
+    border: 1.5px solid #b91c1c;
+}
+
+.smoke-nicotine {
+    display: flex;
+    align-items: center;
+    background: #f2f4f8;
+    color: #222;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 1.2rem;
+    padding: 0.3rem 1.2rem 0.3rem 0.8rem;
+    margin-bottom: 0.5rem;
+    margin-top: 0.2rem;
+}
+
+.smoke-nicotine svg {
+    margin-right: 0.5rem;
+    color: #7b8ca6;
+}
+
+.smoke-nicotine-value {
+    color: #222;
+    font-weight: 700;
+    font-size: 1.15rem;
+    margin-right: 0.2rem;
+}
+
+.smoke-nicotine-unit {
+    color: #7b8ca6;
+    font-size: 1.05rem;
+    font-weight: 500;
+}
+
+.smoke-big-btn-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    min-height: 40vh;
+    margin: 0;
+}
+
+.smoke-big-btn {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: #4f8cff;
+    color: #fff;
+    font-size: 1.5rem;
+    font-weight: 700;
+    border: none;
+    box-shadow: 0 4px 24px rgba(79, 140, 255, 0.18);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    cursor: pointer;
+    outline: none;
+    transition: background 0.2s;
+    z-index: 1;
+}
+
+.smoke-big-btn:active {
+    background: #2563eb;
+}
+
+.smoke-big-btn-ripple,
+.smoke-big-btn-ripple2 {
+    position: absolute;
+    left: 50%;
+    top: 67%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.smoke-big-btn-ripple {
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    background: rgba(79, 140, 255, 0.13);
+}
+
+.smoke-big-btn-ripple2 {
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    background: rgba(79, 140, 255, 0.07);
+}
+
+.smoke-instruction {
+    text-align: center;
+    color: #7b8ca6;
+    font-size: 1.05rem;
+    margin-top: 1.2rem;
+    margin-bottom: 0.5rem;
+    padding: 0 1.5rem;
+}
+
+.smoke-bottom-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #fff;
+    border-top: 1.5px solid #f0f0f0;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    height: 70px;
+    z-index: 100;
+    border-bottom-left-radius: 2rem;
+    border-bottom-right-radius: 2rem;
+    box-shadow: 0 -2px 16px rgba(79, 140, 255, 0.06);
+}
+
+.smoke-bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    color: #b0b0b0;
+    font-size: 1.1rem;
+    text-decoration: none;
+    font-weight: 500;
+    gap: 0.18rem;
+    transition: color 0.2s;
+}
+
+.smoke-bottom-nav-item.active {
+    color: #357aff;
+    font-weight: 700;
+}
+
+.smoke-bottom-nav-icon {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 2px;
+}
+
+.smoke-bottom-nav-label {
+    font-size: 0.98rem;
+    margin-top: 1px;
+}
