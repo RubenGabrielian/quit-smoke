@@ -25,6 +25,7 @@ export default function Statistics() {
     const [statistics, setStatistics] = useState<Statistics | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [hoveredBar, setHoveredBar] = useState<string | null>(null);
 
     useEffect(() => {
         const loadStatistics = async () => {
@@ -70,15 +71,19 @@ export default function Statistics() {
     }
     if (!statistics) return null;
 
-    // Capsule bar chart logic
-    const maxCount = statistics.maxSmokesInDay || 1;
-    const nowIndex = weeklyData.length - 1; // latest day is 'now'
-
-    // Format for x-axis label
-    const formatLabel = (dateStr: string, idx: number) => {
-        if (idx === nowIndex) return <b>now</b>;
+    // Format date to show day name
+    const formatDate = (dateStr: string) => {
         const date = new Date(dateStr);
         return date.toLocaleDateString('en-US', { weekday: 'short' });
+    };
+
+    // Get color based on smoke count
+    const getBarColor = (count: number, maxCount: number) => {
+        if (count === 0) return '#f1f4f8';
+        const percentage = count / maxCount;
+        if (percentage <= 0.3) return '#4f8cff';
+        if (percentage <= 0.6) return '#6aa1ff';
+        return '#8bb5ff';
     };
 
     return (
@@ -108,28 +113,36 @@ export default function Statistics() {
                         <div className="statistics-summary-value">{statistics.maxSmokesInDay}</div>
                     </div>
                 </div>
-                <div className="statistics-capsule-chart">
-                    {weeklyData.map((day, idx) => {
-                        const isNow = idx === nowIndex;
-                        const percent = Math.round((day.smokedCount / maxCount) * 100);
-                        return (
-                            <div className="capsule-bar-container" key={day.date}>
-                                <div className={`capsule-bar-outer${isNow ? ' now' : ''}`}> 
-                                    <div
-                                        className="capsule-bar-inner"
-                                        style={{
-                                            height: `${percent}%`,
-                                            background: 'linear-gradient(180deg, #ff7e9b 0%, #ffb6b9 100%)',
-                                        }}
-                                    />
-                                    {isNow && (
-                                        <div className="capsule-bar-value">{percent}%</div>
-                                    )}
-                                </div>
-                                <div className={`capsule-bar-label${isNow ? ' now' : ''}`}>{formatLabel(day.date, idx)}</div>
+                <div className="statistics-chart">
+                    {weeklyData.map((day) => (
+                        <div 
+                            key={day.date} 
+                            className="statistics-bar-container"
+                            onMouseEnter={() => setHoveredBar(day.date)}
+                            onMouseLeave={() => setHoveredBar(null)}
+                        >
+                            <div 
+                                className={`statistics-bar ${day.smokedCount === 0 ? 'empty' : ''}`}
+                                style={{ 
+                                    height: `${(day.smokedCount / statistics.maxSmokesInDay) * 100}%`,
+                                    background: day.smokedCount === 0 ? undefined : 
+                                        `linear-gradient(180deg, ${getBarColor(day.smokedCount, statistics.maxSmokesInDay)} 0%, ${getBarColor(day.smokedCount, statistics.maxSmokesInDay)}dd 100%)`,
+                                    transform: hoveredBar === day.date ? 'scaleY(1.05)' : 'scaleY(1)',
+                                    transformOrigin: 'bottom'
+                                }}
+                            />
+                            <div className="statistics-bar-label">{formatDate(day.date)}</div>
+                            <div 
+                                className="statistics-bar-value"
+                                style={{
+                                    opacity: hoveredBar === day.date ? 1 : 0.7,
+                                    transform: hoveredBar === day.date ? 'translateY(-2px)' : 'translateY(0)'
+                                }}
+                            >
+                                {day.smokedCount}
                             </div>
-                        );
-                    })}
+                        </div>
+                    ))}
                 </div>
             </div>
         </div>
