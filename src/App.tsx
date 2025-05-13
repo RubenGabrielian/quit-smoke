@@ -23,6 +23,36 @@ function getTickClass(i: number, smokedCount: number) {
   return 'smoke-progress-tick';
 }
 
+function getMotivationMessage(count: number, goal: number) {
+  const percentage = (count / goal) * 100;
+  
+  if (count === 0) {
+    return "Let's start fresh today!";
+  }
+  
+  if (percentage <= 30) {
+    return "You're doing great! Keep it up!";
+  }
+  
+  if (percentage <= 50) {
+    return "You're halfway there. Stay mindful!";
+  }
+  
+  if (percentage <= 70) {
+    return "Be careful, you're approaching your limit.";
+  }
+  
+  if (percentage <= 90) {
+    return "Warning: You're close to your daily limit!";
+  }
+  
+  if (percentage <= 100) {
+    return "⚠️ You've reached your daily limit!";
+  }
+  
+  return "⚠️ You've exceeded your daily limit!";
+}
+
 export default function App() {
   const [smokedCount, setSmokedCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -243,7 +273,7 @@ export default function App() {
                 <span className="smoke-card-count">{smokedCount}</span>
                 <span className="smoke-card-goal">/{SMOKE_GOAL}</span>
               </div>
-              <div className="smoke-card-motivation">You're doing great!</div>
+              <div className="smoke-card-motivation">{getMotivationMessage(smokedCount, SMOKE_GOAL)}</div>
               <div className="smoke-progress">
                 {Array.from({ length: SMOKE_GOAL }).map((_, i) => (
                   <div
