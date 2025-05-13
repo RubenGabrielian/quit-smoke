@@ -60,6 +60,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'counter' | 'statistics'>('counter');
   const nicotine = smokedCount * NICOTINE_PER_SMOKE;
   const [userData, setUserData] = useState<any>(null);
+  const [buttonState, setButtonState] = useState<'normal' | 'success' | 'warning'>('normal');
 
   const initializeApp = async (userData: any) => {
     try {
@@ -72,7 +73,7 @@ export default function App() {
       // Get today's data for real user
       const userId = userData.id.toString();
       const todayData = await getTodaySmokingData(userId);
-      if (todayData) {
+      if (todayData) {  
         console.log('Found today\'s data:', todayData);
         setSmokedCount(todayData.smokedCount);
       } else {
@@ -139,8 +140,9 @@ export default function App() {
   const handleSmoke = async () => {
     try {
       if (isDevelopment()) {
-        // In development, just increment the counter
         setSmokedCount(prev => prev + 1);
+        setButtonState('success');
+        setTimeout(() => setButtonState('normal'), 1000);
         return;
       }
 
@@ -158,6 +160,10 @@ export default function App() {
         await saveSmokingData(userId, newCount);
         console.log('Smoke data saved successfully');
         
+        // Show success effect
+        setButtonState('success');
+        setTimeout(() => setButtonState('normal'), 1000);
+        
         // Show success feedback
         WebApp.showPopup({
           title: 'Success',
@@ -168,6 +174,10 @@ export default function App() {
         console.error('Error saving smoke data:', saveError);
         // Revert the count
         setSmokedCount(smokedCount);
+        
+        // Show warning effect
+        setButtonState('warning');
+        setTimeout(() => setButtonState('normal'), 1000);
         
         // Show detailed error feedback
         const errorMessage = saveError instanceof Error 
@@ -185,6 +195,10 @@ export default function App() {
     } catch (error) {
       console.error('Error in handleSmoke:', error);
       setError(error instanceof Error ? error.message : 'Failed to process smoke action');
+      
+      // Show warning effect
+      setButtonState('warning');
+      setTimeout(() => setButtonState('normal'), 1000);
       
       if (!isDevelopment()) {
         WebApp.showPopup({
@@ -293,10 +307,10 @@ export default function App() {
             </div>
 
             {/* Big Smoke Button */}
-            <div className="smoke-big-btn-wrap">
+            <div className="smoke-big-btn-wrap" onClick={handleSmoke}>
               <div className="smoke-big-btn-ripple"></div>
               <div className="smoke-big-btn-ripple2"></div>
-              <button className="smoke-big-btn" onClick={handleSmoke}>
+              <button className={`smoke-big-btn ${buttonState}`}>
                 Smoke
               </button>
             </div>
