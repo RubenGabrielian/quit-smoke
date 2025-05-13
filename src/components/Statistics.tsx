@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { getWeeklyStatistics } from '../firebase';
-import WebApp from '@twa-dev/sdk';
 import { isDevelopment, mockWeeklyData, mockStatistics, getUserData } from '../utils/devMode';
 import './Statistics.css';
 
@@ -31,27 +30,22 @@ export default function Statistics() {
         const loadStatistics = async () => {
             try {
                 if (isDevelopment()) {
-                    console.log('Using mock data for development');
                     setWeeklyData(mockWeeklyData);
                     setStatistics(mockStatistics);
                     setIsLoading(false);
                     return;
                 }
-
                 const user = getUserData();
                 const userId = user.id.toString();
                 const { weeklyData, statistics } = await getWeeklyStatistics(userId);
-                
                 setWeeklyData(weeklyData);
                 setStatistics(statistics);
             } catch (error) {
-                console.error('Error loading statistics:', error);
                 setError(error instanceof Error ? error.message : 'Failed to load statistics');
             } finally {
                 setIsLoading(false);
             }
         };
-
         loadStatistics();
     }, []);
 
@@ -59,29 +53,33 @@ export default function Statistics() {
         return (
             <div className="statistics-container">
                 <div className="statistics-card">
-                    <div className="statistics-title">Loading Statistics...</div>
+                    <div className="statistics-loading" />
                 </div>
             </div>
         );
     }
-
     if (error) {
         return (
             <div className="statistics-container">
                 <div className="statistics-card">
-                    <div className="statistics-title" style={{ color: '#ff4d4f' }}>Error</div>
+                    <div className="statistics-title">Error</div>
                     <div className="statistics-error">{error}</div>
                 </div>
             </div>
         );
     }
+    if (!statistics) return null;
 
-    if (!statistics) {
-        return null;
-    }
+    // Capsule bar chart logic
+    const maxCount = statistics.maxSmokesInDay || 1;
+    const nowIndex = weeklyData.findIndex(day => day.smokedCount === maxCount) !== -1
+        ? weeklyData.findIndex(day => day.smokedCount === maxCount)
+        : weeklyData.length - 1;
+    const predictionStart = Math.max(weeklyData.length - 3, 0); // last 3 bars as prediction
 
-    // Format date to show day name
-    const formatDate = (dateStr: string) => {
+    // Format for x-axis label
+    const formatLabel = (dateStr: string, idx: number) => {
+        if (idx === nowIndex) return <b>now</b>;
         const date = new Date(dateStr);
         return date.toLocaleDateString('en-US', { weekday: 'short' });
     };
@@ -89,11 +87,12 @@ export default function Statistics() {
     return (
         <div className="statistics-container">
             <div className="statistics-card">
-                <div className="statistics-title">Weekly Statistics</div>
+                <div className="statistics-title">Weekly Overview</div>
                 <div className="statistics-period">
-                    {new Date(statistics.startDate).toLocaleDateString()} - {new Date(statistics.endDate).toLocaleDateString()}
+                    {new Date(statistics.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    {' - '}
+                    {new Date(statistics.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                 </div>
-
                 <div className="statistics-summary">
                     <div className="statistics-summary-item">
                         <div className="statistics-summary-label">Total Smokes</div>
@@ -104,29 +103,42 @@ export default function Statistics() {
                         <div className="statistics-summary-value">{statistics.totalNicotine}mg</div>
                     </div>
                     <div className="statistics-summary-item">
-                        <div className="statistics-summary-label">Average per Day</div>
+                        <div className="statistics-summary-label">Daily Average</div>
                         <div className="statistics-summary-value">{statistics.averageSmokesPerDay.toFixed(1)}</div>
                     </div>
                     <div className="statistics-summary-item">
-                        <div className="statistics-summary-label">Max in a Day</div>
+                        <div className="statistics-summary-label">Peak Day</div>
                         <div className="statistics-summary-value">{statistics.maxSmokesInDay}</div>
                     </div>
                 </div>
-
-                <div className="statistics-chart">
-                    {weeklyData.map((day) => (
-                        <div key={day.date} className="statistics-bar-container">
-                            <div 
-                                className="statistics-bar" 
-                                style={{ 
-                                    height: `${(day.smokedCount / statistics.maxSmokesInDay) * 100}%`,
-                                    backgroundColor: day.smokedCount > 0 ? '#4f8cff' : '#e8e8e8'
-                                }}
-                            />
-                            <div className="statistics-bar-label">{formatDate(day.date)}</div>
-                            <div className="statistics-bar-value">{day.smokedCount}</div>
-                        </div>
-                    ))}
+                <div className="statistics-capsule-chart">
+                    {weeklyData.map((day, idx) => {
+                        const isPrediction = idx >= predictionStart;
+                        const isNow = idx === nowIndex;
+                        const percent = Math.round((day.smokedCount / maxCount) * 100);
+                        return (
+                            <div className="capsule-bar-container" key={day.date}>
+                                <div className={`capsule-bar-outer${isNow ? ' now' : ''}${isPrediction ? ' prediction' : ''}`}> 
+                                    <div
+                                        className={`capsule-bar-inner${isPrediction ? ' prediction' : ''}`}
+                                        style={{
+                                            height: `${percent}%`,
+                                            background: isPrediction
+                                                ? 'linear-gradient(180deg, #7fd7ff 0%, #4f8cff 100%)'
+                                                : 'linear-gradient(180deg, #ff7e9b 0%, #ffb6b9 100%)',
+                                        }}
+                                    />
+                                    {isNow && (
+                                        <div className="capsule-bar-value">{percent}%</div>
+                                    )}
+                                </div>
+                                <div className={`capsule-bar-label${isNow ? ' now' : ''}`}>{formatLabel(day.date, idx)}</div>
+                            </div>
+                        );
+                    })}
+                </div>
+                <div className="statistics-capsule-legend">
+                    <span className="legend-color prediction" /> Prediction
                 </div>
             </div>
         </div>

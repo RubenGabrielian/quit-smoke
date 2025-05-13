@@ -4,7 +4,9 @@ import { useState, useEffect } from 'react';
 import { saveSmokingData, getTodaySmokingData, checkUserExists, createNewUser, updateUserFirstTimeStatus, initializeDatabase, verifyFirebaseConnection } from './firebase';
 import WebApp from '@twa-dev/sdk';
 import Statistics from './components/Statistics';
+import BottomMenu from './components/BottomMenu';
 import { isDevelopment, getUserData, mockTelegramUser } from './utils/devMode';
+import { initializeApp } from 'firebase/app';
 
 const SMOKE_GOAL = Number(import.meta.env.VITE_SMOKE_GOAL) || 20;
 const NICOTINE_PER_SMOKE = Number(import.meta.env.VITE_NICOTINE_PER_SMOKE) || 12; // mg
@@ -22,105 +24,80 @@ export default function App() {
   const [smokedCount, setSmokedCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isTelegramReady, setIsTelegramReady] = useState(false);
-  const [showStatistics, setShowStatistics] = useState(false);
+  const [activeTab, setActiveTab] = useState<'counter' | 'statistics'>('counter');
   const nicotine = smokedCount * NICOTINE_PER_SMOKE;
 
-  // Initialize Telegram WebApp
-  useEffect(() => {
-    const initTelegram = async () => {
-      try {
-        // Check if we're running in Telegram WebApp
-        if (!window.Telegram?.WebApp) {
-          throw new Error('Not running in Telegram WebApp');
-        }
-
-        // Initialize the Telegram WebApp
-        WebApp.ready();
-        
-        // Expand the WebApp to full height
-        WebApp.expand();
-        
-        // Set the main button color
-        WebApp.MainButton.setParams({
-          text: 'SMOKE TRACKER',
-          color: '#4f8cff',
-        });
-
-        // Verify that we have user data
-        const user = WebApp.initDataUnsafe.user;
-        if (!user?.id) {
-          throw new Error('Telegram user data not available');
-        }
-
-        setIsTelegramReady(true);
-      } catch (err) {
-        console.error('Error initializing Telegram WebApp:', err);
-        setError(err instanceof Error ? err.message : 'Failed to initialize Telegram WebApp');
-        setIsLoading(false);
+  const initializeApp = async (userData: any) => {
+    try {
+      if (isDevelopment()) {
+        // Use mock data for development
+        setSmokedCount(5); // Mock count for development
+        return;
       }
-    };
 
-    initTelegram();
-  }, []);
+      // Get today's data for real user
+      const userId = userData.id.toString();
+      const todayData = await getTodaySmokingData(userId);
+      if (todayData) {
+        console.log('Found today\'s data:', todayData);
+        setSmokedCount(todayData.smokedCount);
+      } else {
+        console.log('No data for today, starting with 0');
+        setSmokedCount(0);
+      }
+    } catch (error) {
+      console.error('Error initializing app:', error);
+      setSmokedCount(0);
+    }
+  };
 
-  // Initialize app
   useEffect(() => {
-    const initializeApp = async () => {
+    const init = async () => {
       try {
-        // In development, skip Telegram initialization
-        if (!isDevelopment()) {
-          // Check if we're running in Telegram WebApp
-          if (!window.Telegram?.WebApp) {
-            console.error('Telegram WebApp not detected');
-            throw new Error('Please open this app from Telegram');
-          }
+        // Get user data first - in development mode, use mock data
+        const userData = isDevelopment() ? mockTelegramUser : await getUserData();
+        console.log('User data:', userData);
 
+        if (isDevelopment()) {
+          // In development mode, skip Telegram and Firebase initialization
+          await initializeApp(userData);
+          setIsLoading(false);
+          return;
+        }
+
+        // Production mode initialization
+        try {
           // Initialize Telegram WebApp
           WebApp.ready();
           WebApp.expand();
+        } catch (telegramError) {
+          console.error('Telegram initialization error:', telegramError);
+          throw new Error('Please open this app from Telegram');
         }
 
-        // Get user data (real or mock)
-        const user = isDevelopment() ? mockTelegramUser : getUserData();
-        const userId = user.id.toString();
-        console.log('Initializing app for user:', {
-          id: userId,
-          username: user.username,
-          firstName: user.first_name,
-          lastName: user.last_name,
-          isDevelopment: isDevelopment()
-        });
+        // Initialize Firebase with user ID
+        const userId = userData.id.toString();
+        await initializeDatabase(userId);
+        await verifyFirebaseConnection();
 
-        // Initialize database structure
-        if (!isDevelopment()) {
-          await initializeDatabase(userId);
-        }
-        
-        // Get today's data
+        // Initialize app
+        await initializeApp(userData);
+      } catch (err) {
+        console.error('Initialization error:', err);
         if (isDevelopment()) {
-          // Use mock data for today
-          setSmokedCount(5); // Mock count for development
+          // In development, just show a warning but continue with mock data
+          console.warn('Development mode warning:', err);
+          setSmokedCount(5); // Use mock data
         } else {
-          const todayData = await getTodaySmokingData(userId);
-          if (todayData) {
-            console.log('Found today\'s data:', todayData);
-            setSmokedCount(todayData.smokedCount);
-          } else {
-            console.log('No data for today, starting with 0');
-            setSmokedCount(0);
-          }
+          // In production, show the error
+          setError('Failed to initialize app. Please try again.');
         }
-      } catch (error) {
-        console.error('Error initializing app:', error);
-        setError(error instanceof Error ? error.message : 'Failed to initialize app');
-        setSmokedCount(0);
       } finally {
         setIsLoading(false);
       }
     };
 
-    initializeApp();
+    init();
   }, []);
 
   // Save smoking data whenever it changes
@@ -214,97 +191,62 @@ export default function App() {
     );
   }
 
-  if (showStatistics) {
-    return (
-      <>
-        <Statistics />
-        <button 
-          className="statistics-back-button"
-          onClick={() => setShowStatistics(false)}
-          style={{
-            position: 'fixed',
-            bottom: '20px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            padding: '12px 24px',
-            backgroundColor: '#4f8cff',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '16px',
-            cursor: 'pointer',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
-          }}
-        >
-          Back to Counter
-        </button>
-      </>
-    );
-  }
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'statistics':
+        return <Statistics />;
+      case 'counter':
+      default:
+        return (
+          <>
+            {/* Card */}
+            <div className="smoke-card">
+              <div className="smoke-card-title">Smoked today:</div>
+              <div style={{ display: 'flex', alignItems: 'flex-end', marginBottom: 8 }}>
+                <span className="smoke-card-count">{smokedCount}</span>
+                <span className="smoke-card-goal">/{SMOKE_GOAL}</span>
+              </div>
+              <div className="smoke-card-motivation">You're doing great!</div>
+              <div className="smoke-progress">
+                {Array.from({ length: SMOKE_GOAL }).map((_, i) => (
+                  <div
+                    key={i}
+                    className={getTickClass(i, smokedCount)}
+                  />
+                ))}
+              </div>
+              <div style={{ color: '#7b8ca6', fontSize: '1rem', marginBottom: 8 }}>
+                You've consumed approximately nicotine.
+              </div>
+              <div className="smoke-nicotine">
+                <svg width="20" height="20" fill="none" stroke="#7b8ca6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M12 2C12 2 4 10.36 4 15.5A8 8 0 0 0 20 15.5C20 10.36 12 2 12 2Z"/><circle cx="12" cy="17" r="1.5"/></svg>
+                <span className="smoke-nicotine-value">{nicotine}</span>
+                <span className="smoke-nicotine-unit">mg</span>
+              </div>
+            </div>
+
+            {/* Big Smoke Button */}
+            <div className="smoke-big-btn-wrap">
+              <div className="smoke-big-btn-ripple"></div>
+              <div className="smoke-big-btn-ripple2"></div>
+              <button className="smoke-big-btn" onClick={handleSmoke}>
+                Smoke
+              </button>
+            </div>
+
+            <div className="smoke-instruction">
+              Tap the button above to log your smoking activity.<br />
+              Stay committed to your goal!
+            </div>
+          </>
+        );
+    }
+  };
 
   return (
     <div className="smoke-bg">
-      {/* Card */}
-      <div className="smoke-card">
-        <div className="smoke-card-title">Smoked today:</div>
-        <div style={{ display: 'flex', alignItems: 'flex-end', marginBottom: 8 }}>
-          <span className="smoke-card-count">{smokedCount}</span>
-          <span className="smoke-card-goal">/{SMOKE_GOAL}</span>
-        </div>
-        <div className="smoke-card-motivation">You're doing great!</div>
-        <div className="smoke-progress">
-          {Array.from({ length: SMOKE_GOAL }).map((_, i) => (
-            <div
-              key={i}
-              className={getTickClass(i, smokedCount)}
-            />
-          ))}
-        </div>
-        <div style={{ color: '#7b8ca6', fontSize: '1rem', marginBottom: 8 }}>
-          You've consumed approximately nicotine.
-        </div>
-        <div className="smoke-nicotine">
-          <svg width="20" height="20" fill="none" stroke="#7b8ca6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M12 2C12 2 4 10.36 4 15.5A8 8 0 0 0 20 15.5C20 10.36 12 2 12 2Z"/><circle cx="12" cy="17" r="1.5"/></svg>
-          <span className="smoke-nicotine-value">{nicotine}</span>
-          <span className="smoke-nicotine-unit">mg</span>
-        </div>
-      </div>
-
-      {/* Big Smoke Button */}
-      <div className="smoke-big-btn-wrap">
-        <div className="smoke-big-btn-ripple"></div>
-        <div className="smoke-big-btn-ripple2"></div>
-        <button className="smoke-big-btn" onClick={handleSmoke}>
-          Smoke
-        </button>
-      </div>
-
-      {/* Statistics Button */}
-      <button 
-        className="statistics-button"
-        onClick={() => setShowStatistics(true)}
-        style={{
-          marginTop: '16px',
-          padding: '12px 24px',
-          backgroundColor: '#f8f9fa',
-          color: '#4f8cff',
-          border: '1px solid #4f8cff',
-          borderRadius: '8px',
-          fontSize: '16px',
-          cursor: 'pointer',
-          width: '100%',
-          maxWidth: '300px',
-          margin: '16px auto',
-          display: 'block'
-        }}
-      >
-        View Weekly Statistics
-      </button>
-
-      <div className="smoke-instruction">
-        Tap the button above to log your smoking activity.<br />
-        Stay committed to your goal!
-      </div>
+      {renderContent()}
+      <BottomMenu activeTab={activeTab} onTabChange={setActiveTab} />
     </div>
   );
 }
