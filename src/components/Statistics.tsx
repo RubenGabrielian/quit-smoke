@@ -74,7 +74,7 @@ export default function Statistics() {
     // Format date to show day name
     const formatDate = (dateStr: string) => {
         const date = new Date(dateStr);
-        return date.toLocaleDateString('en-US', { weekday: 'short' });
+        return date.toLocaleDateString('hy-AM', { weekday: 'short' });
     };
 
     // Get color based on smoke count
@@ -91,9 +91,9 @@ export default function Statistics() {
             <div className="statistics-card">
                 <div className="statistics-title">Weekly Overview</div>
                 <div className="statistics-period">
-                    {new Date(statistics.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    {new Date(statistics.startDate).toLocaleDateString('hy-AM', { month: 'short', day: 'numeric' })}
                     {' - '}
-                    {new Date(statistics.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    {new Date(statistics.endDate).toLocaleDateString('hy-AM', { month: 'short', day: 'numeric', year: 'numeric' })}
                 </div>
                 <div className="statistics-summary">
                     <div className="statistics-summary-item">
@@ -131,7 +131,7 @@ export default function Statistics() {
                                     transformOrigin: 'bottom'
                                 }}
                             />
-                            <div className="statistics-bar-label">{formatDate(day.date)}</div>
+                            {/* <div className="statistics-bar-label">{formatDate(day.date)}</div> */}
                             <div 
                                 className="statistics-bar-value"
                                 style={{

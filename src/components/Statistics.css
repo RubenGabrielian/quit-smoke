@@ -70,14 +70,13 @@
 }
 
 .statistics-chart {
-    background: white;
-    border-radius: 16px;
-    padding: 24px 16px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-    border: 1px solid rgba(79, 140, 255, 0.1);
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+    height: 200px;
     margin-top: 24px;
-    position: relative;
-    min-height: 280px;
+    padding: 0 8px;
 }
 
 .statistics-chart::before {
@@ -94,11 +93,11 @@
 .statistics-bar-container {
     display: flex;
     flex-direction: column;
+    justify-content: flex-end;
     align-items: center;
     flex: 1;
-    height: 200px;
+    height: 100%;
     position: relative;
-    transition: transform 0.2s ease;
 }
 
 .statistics-bar-container:hover {
@@ -106,12 +105,11 @@
 }
 
 .statistics-bar {
-    width: 28px;
-    background: linear-gradient(180deg, #4f8cff 0%, #6aa1ff 100%);
-    border-radius: 8px 8px 0 0;
-    transition: all 0.3s ease;
+    width: 24px;
+    border-radius: 4px 4px 0 0;
+    transition: height 0.3s ease;
     min-height: 4px;
-    box-shadow: 0 2px 8px rgba(79, 140, 255, 0.2);
+    background-color: #4f8cff;
 }
 
 .statistics-bar.empty {
@@ -287,12 +285,4 @@
 
 .legend-color.prediction {
     background: linear-gradient(90deg, #7fd7ff 0%, #4f8cff 100%);
-}
-
-/* Remove old bar styles if not needed */
-.statistics-bar,
-.statistics-bar-container,
-.statistics-bar-label,
-.statistics-bar-value {
-    display: none !important;
 }

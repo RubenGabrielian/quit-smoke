@@ -7,6 +7,9 @@ import Statistics from './components/Statistics';
 import BottomMenu from './components/BottomMenu';
 import { isDevelopment, getUserData, mockTelegramUser } from './utils/devMode';
 import { initializeApp } from 'firebase/app';
+import LoadingSpinner from './components/LoadingSpinner';
+import DefaultUserIcon from './assets/user-default.svg';
+import { FiBell } from 'react-icons/fi';
 
 const SMOKE_GOAL = Number(import.meta.env.VITE_SMOKE_GOAL) || 20;
 const NICOTINE_PER_SMOKE = Number(import.meta.env.VITE_NICOTINE_PER_SMOKE) || 12; // mg
@@ -26,6 +29,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'counter' | 'statistics'>('counter');
   const nicotine = smokedCount * NICOTINE_PER_SMOKE;
+  const [userData, setUserData] = useState<any>(null);
 
   const initializeApp = async (userData: any) => {
     try {
@@ -56,6 +60,7 @@ export default function App() {
       try {
         // Get user data first - in development mode, use mock data
         const userData = isDevelopment() ? mockTelegramUser : await getUserData();
+        setUserData(userData);
         console.log('User data:', userData);
 
         if (isDevelopment()) {
@@ -167,6 +172,15 @@ export default function App() {
     }
   };
 
+  // Helper to get initials
+  const getInitials = (user: any) => {
+    if (!user) return '';
+    if (user.first_name && user.last_name) return `${user.first_name[0]}${user.last_name[0]}`.toUpperCase();
+    if (user.first_name) return user.first_name[0].toUpperCase();
+    if (user.username) return user.username[0].toUpperCase();
+    return 'U';
+  };
+
   if (error) {
     return (
       <div className="smoke-bg">
@@ -185,11 +199,33 @@ export default function App() {
     return (
       <div className="smoke-bg">
         <div className="smoke-card">
-          <div className="smoke-card-title">Loading...</div>
+          <LoadingSpinner />
         </div>
       </div>
     );
   }
+
+  // Greeting section (show only on counter tab)
+  const renderGreeting = () => {
+    if (!userData) return null;
+    const name = userData.first_name || userData.username || 'User';
+    const photoUrl = userData.photo_url;
+    return (
+      <div className="smoke-greeting-bar">
+        <div className="smoke-greeting-avatar-wrap">
+          {photoUrl ? (
+            <img src={photoUrl} alt="User" className="smoke-greeting-avatar-img" />
+          ) : (
+            <div className="smoke-greeting-avatar-circle">
+              {getInitials(userData)}
+            </div>
+          )}
+        </div>
+        <span className="smoke-greeting-text">Hello, <b>{name}</b></span>
+        <FiBell className="smoke-greeting-bell" />
+      </div>
+    );
+  };
 
   const renderContent = () => {
     switch (activeTab) {
@@ -199,6 +235,7 @@ export default function App() {
       default:
         return (
           <>
+            {renderGreeting()}
             {/* Card */}
             <div className="smoke-card">
               <div className="smoke-card-title">Smoked today:</div>
