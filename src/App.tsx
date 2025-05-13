@@ -314,11 +314,6 @@ export default function App() {
                 Smoke
               </button>
             </div>
-
-            <div className="smoke-instruction">
-              Tap the button above to log your smoking activity.<br />
-              Stay committed to your goal!
-            </div>
           </>
         );
     }
