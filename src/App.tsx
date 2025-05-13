@@ -1,9 +1,10 @@
 import './index.css';
 import './SmokeHome.css';
 import { useState, useEffect } from 'react';
-import { saveSmokingData, getTodaySmokingData, checkUserExists, createNewUser, updateUserFirstTimeStatus, getUserData, initializeDatabase, verifyFirebaseConnection } from './firebase';
+import { saveSmokingData, getTodaySmokingData, checkUserExists, createNewUser, updateUserFirstTimeStatus, initializeDatabase, verifyFirebaseConnection } from './firebase';
 import WebApp from '@twa-dev/sdk';
 import Statistics from './components/Statistics';
+import { isDevelopment, getUserData, mockTelegramUser } from './utils/devMode';
 
 const SMOKE_GOAL = Number(import.meta.env.VITE_SMOKE_GOAL) || 20;
 const NICOTINE_PER_SMOKE = Number(import.meta.env.VITE_NICOTINE_PER_SMOKE) || 12; // mg
@@ -67,68 +68,52 @@ export default function App() {
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        // Check if we're running in Telegram WebApp
-        if (!window.Telegram?.WebApp) {
-          console.error('Telegram WebApp not detected');
-          throw new Error('Please open this app from Telegram');
+        // In development, skip Telegram initialization
+        if (!isDevelopment()) {
+          // Check if we're running in Telegram WebApp
+          if (!window.Telegram?.WebApp) {
+            console.error('Telegram WebApp not detected');
+            throw new Error('Please open this app from Telegram');
+          }
+
+          // Initialize Telegram WebApp
+          WebApp.ready();
+          WebApp.expand();
         }
 
-        // Log Telegram WebApp data for debugging
-        console.log('Telegram WebApp data:', {
-          initData: WebApp.initData,
-          initDataUnsafe: WebApp.initDataUnsafe,
-          platform: WebApp.platform,
-          version: WebApp.version,
-          colorScheme: WebApp.colorScheme,
-          themeParams: WebApp.themeParams
-        });
-
-        // Initialize Telegram WebApp
-        WebApp.ready();
-        WebApp.expand();
-
-        // Verify we have user data
-        const user = WebApp.initDataUnsafe.user;
-        if (!user?.id) {
-          console.error('No Telegram user data available:', WebApp.initDataUnsafe);
-          throw new Error('Telegram user data not available. Please try reopening the app.');
-        }
-
+        // Get user data (real or mock)
+        const user = isDevelopment() ? mockTelegramUser : getUserData();
         const userId = user.id.toString();
-        console.log('Initializing app for Telegram user:', {
+        console.log('Initializing app for user:', {
           id: userId,
           username: user.username,
           firstName: user.first_name,
-          lastName: user.last_name
+          lastName: user.last_name,
+          isDevelopment: isDevelopment()
         });
 
-        // First verify Firebase connection
-        await verifyFirebaseConnection();
-        
         // Initialize database structure
-        await initializeDatabase(userId);
+        if (!isDevelopment()) {
+          await initializeDatabase(userId);
+        }
         
-        // Then try to get today's data
-        const todayData = await getTodaySmokingData(userId);
-        if (todayData) {
-          console.log('Found today\'s data:', todayData);
-          setSmokedCount(todayData.smokedCount);
+        // Get today's data
+        if (isDevelopment()) {
+          // Use mock data for today
+          setSmokedCount(5); // Mock count for development
         } else {
-          console.log('No data for today, starting with 0');
-          setSmokedCount(0);
+          const todayData = await getTodaySmokingData(userId);
+          if (todayData) {
+            console.log('Found today\'s data:', todayData);
+            setSmokedCount(todayData.smokedCount);
+          } else {
+            console.log('No data for today, starting with 0');
+            setSmokedCount(0);
+          }
         }
       } catch (error) {
         console.error('Error initializing app:', error);
-        // Show more specific error message based on the error type
-        if (error instanceof Error) {
-          if (error.message.includes('Telegram')) {
-            setError('Please open this app from Telegram. If you are already in Telegram, try reopening the app.');
-          } else {
-            setError(`Error: ${error.message}`);
-          }
-        } else {
-          setError('An unexpected error occurred. Please try reopening the app.');
-        }
+        setError(error instanceof Error ? error.message : 'Failed to initialize app');
         setSmokedCount(0);
       } finally {
         setIsLoading(false);
@@ -141,11 +126,13 @@ export default function App() {
   // Save smoking data whenever it changes
   const handleSmoke = async () => {
     try {
-      const user = WebApp.initDataUnsafe.user;
-      if (!user?.id) {
-        throw new Error('Telegram user data not available');
+      if (isDevelopment()) {
+        // In development, just increment the counter
+        setSmokedCount(prev => prev + 1);
+        return;
       }
 
+      const user = getUserData();
       const userId = user.id.toString();
       console.log('Handling smoke for user:', userId);
       
@@ -181,23 +168,25 @@ export default function App() {
           buttons: [{ type: 'ok' }]
         });
         
-        // Also set the error state for the UI
         setError(saveError instanceof Error ? saveError.message : 'Failed to save smoking data');
       }
     } catch (error) {
       console.error('Error in handleSmoke:', error);
       setError(error instanceof Error ? error.message : 'Failed to process smoke action');
       
-      // Show error feedback
-      WebApp.showPopup({
-        title: 'Error',
-        message: error instanceof Error 
-          ? `Error: ${error.message}\n\nPlease try again.`
-          : 'An error occurred. Please try again.',
-        buttons: [{ type: 'ok' }]
-      });
+      if (!isDevelopment()) {
+        WebApp.showPopup({
+          title: 'Error',
+          message: error instanceof Error 
+            ? `Error: ${error.message}\n\nPlease try again.`
+            : 'An error occurred. Please try again.',
+          buttons: [{ type: 'ok' }]
+        });
+      }
     } finally {
-      WebApp.MainButton.hideProgress();
+      if (!isDevelopment()) {
+        WebApp.MainButton.hideProgress();
+      }
     }
   };
 

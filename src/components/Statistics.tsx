@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getWeeklyStatistics } from '../firebase';
 import WebApp from '@twa-dev/sdk';
+import { isDevelopment, mockWeeklyData, mockStatistics, getUserData } from '../utils/devMode';
 import './Statistics.css';
 
 interface DayData {
@@ -29,11 +30,15 @@ export default function Statistics() {
     useEffect(() => {
         const loadStatistics = async () => {
             try {
-                const user = WebApp.initDataUnsafe.user;
-                if (!user?.id) {
-                    throw new Error('Telegram user data not available');
+                if (isDevelopment()) {
+                    console.log('Using mock data for development');
+                    setWeeklyData(mockWeeklyData);
+                    setStatistics(mockStatistics);
+                    setIsLoading(false);
+                    return;
                 }
 
+                const user = getUserData();
                 const userId = user.id.toString();
                 const { weeklyData, statistics } = await getWeeklyStatistics(userId);
                 
